@@ -1,7 +1,7 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
-  "parameters":{
+  "parameters": {
     "instances": {
       "type": "int",
       "metadata": {
@@ -9,12 +9,31 @@
       },
       "defaultValue": 3
     },
+    "DeploymentMode": {
+      "type": "string",
+      "allowedValues": [
+        "Default",
+        "Slaves Only (Please Enter Master  Node Uri)"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
     "prefix": {
       "type": "string",
       "metadata": {
         "description": "OPTIONAL: Please use only lower case and digits. Max 11 chars. If empty some random will be used."
       },
       "defaultValue": ""
+    },
+    "SlaveCPUCore": {
+      "type": "int",
+      "defaultValue": 1.5,
+      "minValue": 1,
+      "maxValue": 4,
+      "metadata": {
+        "description": "Please adjust number of CPU core for Slave worker node. Default: 1.5 vCore"
+      }
     }
   },
   "variables": {
@@ -31,6 +50,7 @@
     "containerSlaveGroup": "[concat(variables('prefix'),'-slave')]",
     "containerSlaveName": "slave",
     "containerSlaveImage": "locustio/locust",
+    "containerSlaveCPUCore": "[parameters('SlaveCPUCore')]",
     "containerMasterAddress": "[concat(variables('containerDns'), '.', resourceGroup().location, '.azurecontainer.io')]",
     "containerMasterUrl": "[concat('http://', variables('containerMasterAddress'), ':8089')]",
     "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -39,28 +59,32 @@
     {
       "type": "Microsoft.Storage/storageAccounts",
       "name": "[variables('storageAccountName')]",
+      "condition": "[equals(parameters('DeploymentMode'),'Default')]",
       "apiVersion": "2017-10-01",
       "location": "[variables('location')]",
       "sku": {
         "name": "Standard_LRS"
       },
       "kind": "Storage",
-      "properties": {}
+      "properties": {
+      }
     },
     {
       "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
-      "apiVersion": "2019-04-01",
+      "apiVersion": "2019-06-01",
+      "condition": "[equals(parameters('DeploymentMode'),'Default')]",
       "name": "[concat(variables('storageAccountName'), '/default/scripts')]",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
       ],
       "properties": {
-        "shareQuota": "1"
+        "shareQuota": 1
       }
     },
     {
       "name": "[variables('containerProvisionerName')]",
       "type": "Microsoft.ContainerInstance/containerGroups",
+      "condition": "[equals(parameters('DeploymentMode'),'Default')]",
       "apiVersion": "2018-02-01-preview",
       "location": "[variables('location')]",
       "dependsOn": [
@@ -105,6 +129,7 @@
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2018-10-01",
       "location": "[resourceGroup().location]",
+      "condition": "[equals(parameters('DeploymentMode'),'Default')]",
       "dependsOn": [
         "[concat('Microsoft.ContainerInstance/containerGroups/', variables('containerProvisionerName'))]"
       ],
@@ -157,11 +182,11 @@
           "ports": [
             {
               "protocol": "tcp",
-              "port": "8089"
+              "port": 8089
             },
             {
               "protocol": "tcp",
-              "port": "5557"
+              "port": 5557
             }
           ],
           "dnsNameLabel": "[variables('containerDns')]"
@@ -180,6 +205,7 @@
     },
     {
       "name": "[concat(variables('containerSlaveGroup'), '-', copyIndex())]",
+      "condition": "[equals(parameters('DeploymentMode'),'Default')]",
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2018-10-01",
       "location": "[resourceGroup().location]",
@@ -198,7 +224,7 @@
               "image": "[variables('containerSlaveImage')]",
               "resources": {
                 "requests": {
-                  "cpu": 1.5,
+                  "cpu": "[variables('containerSlaveCPUCore')]",
                   "memoryInGb": 0.5
                 }
               },

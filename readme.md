@@ -154,3 +154,6 @@ az group delete --name ${RG} --yes
 * Load test affects target service performance. Never run load tests without service owner permission!
 * Some services can block traffic from generator - you should whitelist Azure Region IPs ([Download prefixes](https://www.microsoft.com/download/details.aspx?id=56519)).
 * After load tests cleanup Azure resources. You will be billed for running Azure Contianers Instance and Storage Account usage. You can check cost of ACI [here](https://azure.microsoft.com/en-us/pricing/details/container-instances/).
+
+## Credit
+This project is forked from ([ORBA/azure-locust](https://github.com/ORBA/azure-locust)). 
